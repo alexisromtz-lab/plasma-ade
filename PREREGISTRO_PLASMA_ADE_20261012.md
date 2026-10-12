@@ -231,3 +231,47 @@ HUELLA de esta escritura: el encabezado de nivel dos que abre este bloque.
 Gate determinista de pre-vuelo corrido antes de la escritura, con código de salida 0.
 
 T_UTC_S de esta escritura: 2026-10-12T16:38:40Z
+
+## §12. Adenda de Rediseño Instrumental: Mur 1D, Monitor Desacoplado V⁺ y Ventana Estacionaria
+
+UNIVERSO DECLARADO: reconfiguración del instrumento numérico ADE-FDTD 1D para abatir reflectancia de frontera y eliminar ondas estacionarias en la medición puntual. Los parámetros físicos del medio (c=1, eps0=1, mu0=1, omega_p=1.0, escala lambda_p=2pi, espesores d aprox en {0.25, 0.50, 0.75, 1.00}) y los criterios de aceptación física de §11 permanecen inmutables.
+
+ESTADO: pre-registro congelado de tres modificaciones instrumentales ordenadas tras el fallo del criterio C4a (acta commit 89bdbfd).
+
+### A. Sustitución de Frontera: Condición de Radiación Mur 1D
+
+Se sustituye la capa esponja de grado 4 por una frontera absorbente analítica de radiación de primer orden (Mur 1D) aplicada en los extremos x = 0 y x = N_x - 1 sobre el campo transversal E_z:
+
+E_z^{n+1}[0] = E_z^n[1] + ((c dt - dx) / (c dt + dx)) * (E_z^{n+1}[1] - E_z^n[0])
+E_z^{n+1}[N_x - 1] = E_z^n[N_x - 2] + ((c dt - dx) / (c dt + dx)) * (E_z^{n+1}[N_x - 2] - E_z^n[N_x - 1])
+
+La reflectancia de frontera exigida para validar la calibración de vacío es |r_borde| <= 1.0e-3.
+
+### B. Monitor de Onda Progresiva Desacoplada V⁺
+
+La lectura de transmitancia en el monitor (celda 700) deja de depender del muestreo escalar aislado de E_z. Se define el observable de onda progresiva hacia +x mediante la combinación de E_z y hy:
+
+V⁺(t) = 0.5 * (E_z[700, t] + eta0 * hy[700, t])
+
+con impedancia intrínseca de vacío eta0 = sqrt(mu0/eps0) = 1.0. 
+El ajuste armónico LSQ sobre los últimos tres periodos estacionarios se evalúa sobre la traza temporal de V⁺(t), cancelando la modulación parásita por interferencia destructiva o constructiva de ondas retrógradas.
+
+### C. Extensión de Ventana Temporal a Régimen Estacionario Estricto
+
+Se amplía la ventana temporal de simulación de N_t = 4000 a N_t = 12000 pasos.
+Criterio de estado estacionario exigido: la envolvente del campo en la lámina debe exhibir una variación relativa menor a 1.0e-4 entre ciclos consecutivos dentro de la ventana de integración LSQ [N_t - 606, N_t].
+
+### D. Invarianza de Criterios Físicos
+
+Los criterios de paso congelados en §11 se mantienen estrictos e inalterados:
+1. Pendiente exacta: |m_medido - m_exacto| / |m_exacto| <= 0.02, con m_exacto = -12.3900.
+2. Cota profunda: T(w1, d aprox = 1.00) <= 5.0e-6.
+3. Testigo PEC: T_medido > 10 * T_piso, con T_piso <= 1.0e-8.
+4. Banda pasante: T(w2) >= 0.97 en todos los espesores.
+
+### E. Tupla y Sello de esta Adenda
+
+TARGET: PREREGISTRO_PLASMA_ADE_20261012.md dentro de plasma-ade.
+BLOB_PRE: 8543d9b3994001b608a910bc4128af6c5811a636.
+LINEAS_PRE: 233.
+HUELLA: ## §12. Adenda de Rediseño Instrumental: Mur 1D, Monitor Desacoplado V⁺ y Ventana Estacionaria
