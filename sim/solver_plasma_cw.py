@@ -63,6 +63,27 @@ TOL_PISO_ABS = 1.0e-8
 FACTOR_PISO = 10.0
 TOL_VACIO = 1.0e-4
 
+# ===========================================================================
+# INSTRUMENTACION §12: FRONTERA MUR 1D, OBSERVABLE V+ Y NT=12000
+# ===========================================================================
+# Adenda instrumental pre-registrada (PREREGISTRO_PLASMA_ADE_20261012.md,
+# commit a50993e).  NO altera ninguna constante sellada: las cifras de §11
+# (NT, SIGMA_MAX, I_MON, la escalera de d_tilde y los umbrales) quedan
+# intactas; aqui se declaran con nombre propio los valores instrumentados y
+# los criterios de validacion del instrumento (no criterios fisicos).
+#   remedio 1: esponja conductora desactivada (sigma = 0) + condicion de
+#              radiacion Mur 1D de primer orden en x = 0 y x = N_x - 1.
+#   remedio 2: observable de onda progresiva V+ = 0.5 (E_z + eta0 hy) en la
+#              celda del monitor I_MON = 700, sincrono con hy.
+#   remedio 3: ventana temporal N_t = 12000 pasos; el estimador LSQ queda fijo
+#              en los ultimos N_VENTANA = 606 pasos = [11394, 12000].
+SIGMA_ESPOJA_INSTR = 0.0
+NT_INSTRUMENTADO = 12000
+MUR_ACTIVO = True
+C_MUR = (C * DT - DX) / (C * DT + DX)
+TOL_R_BORDE = 1.0e-3
+TOL_ENVOLVENTE = 1.0e-4
+
 
 # --------------------------------------------------------------------------- #
 #  A.  SELLOS: la aritmetica congelada se re-mide aqui y se asevera al cierre
@@ -157,6 +178,8 @@ def perfil_sigma(sigma_max):
 SIGMA = perfil_sigma(SIGMA_MAX)
 DAMP = np.exp(-SIGMA * DT)
 DAMP_SIN = np.exp(-perfil_sigma(0.0) * DT)
+SIGMA_INSTR = perfil_sigma(SIGMA_ESPOJA_INSTR)
+DAMP_INSTR = np.exp(-SIGMA_INSTR * DT)
 
 
 def fuente(t, w0):
@@ -165,8 +188,8 @@ def fuente(t, w0):
     return s * math.sin(w0 * t)
 
 
-def serie_fuente(w0):
-    return np.array([fuente((n + 1) * DT, w0) for n in range(NT)], dtype=float)
+def serie_fuente(w0, nt=NT_INSTRUMENTADO):
+    return np.array([fuente((n + 1) * DT, w0) for n in range(nt)], dtype=float)
 
 
 def estimar(muestras, tiempos, w0):
@@ -179,9 +202,22 @@ def estimar(muestras, tiempos, w0):
     return A, B, V, float(np.sqrt(float(np.mean(r * r))))
 
 
-def correr(w0, n_d, modo, omega_p=OMEGA_P, damp=DAMP, esponja="encendida"):
+def correr(w0, n_d, modo, omega_p=OMEGA_P, damp=DAMP_INSTR, esponja="instrumentada",
+           nt=NT_INSTRUMENTADO, mur=MUR_ACTIVO, observable_vmas=True):
     """modo: 'vacio' (sin lamina) | 'lar' (lamina de plasma nu = 0) | 'pec'
-    (lamina con E_z = 0 forzado).  Un paso = H, J, E, fuente, absorcion, PEC."""
+    (lamina con E_z = 0 forzado).  Un paso = H, J, E, fuente, Mur, absorcion, PEC.
+
+    Instrumentacion §12 (remedios 1, 2 y 3):
+      - mur = True: frontera de radiacion Mur 1D de primer orden en x = 0 y
+        x = N_x - 1 con C_MUR = (c dt - dx) / (c dt + dx); sustituye la esponja.
+      - observable_vmas = True: el monitor registra la traza de onda progresiva
+        V+ = 0.5 (E_z[I_MON] + eta0 hy[I_MON]) y su pareja retrograda
+        V- = 0.5 (E_z[I_MON] - eta0 hy[I_MON]) para medir |r_borde|.
+      - nt: longitud de la corrida en pasos; el estimador LSQ sigue fijo en los
+        ultimos N_VENTANA pasos.
+    La corrida sellada del pre-registro se reproduce pidiendo explicitamente
+    damp=DAMP, nt=NT, mur=False, observable_vmas=False.
+    """
     ez = np.zeros(NX)
     hy = np.zeros(NX)
     jz = np.zeros(NX)
@@ -192,31 +228,48 @@ def correr(w0, n_d, modo, omega_p=OMEGA_P, damp=DAMP, esponja="encendida"):
         i0 = I_SLAB
         i1 = I_SLAB
     acople = (omega_p ** 2) * DT
-    jsrc = serie_fuente(w0)
-    n0 = NT - N_VENTANA
+    jsrc = serie_fuente(w0, nt)
+    n0 = nt - N_VENTANA
     mues = np.empty(N_VENTANA)
+    retro = np.empty(N_VENTANA)
+    lamina = np.empty(N_VENTANA)
     tvec = np.empty(N_VENTANA)
-    for n in range(NT):
+    for n in range(nt):
+        if mur:
+            e0_old = ez[0]
+            e1_old = ez[1]
+            eNm2_old = ez[NX - 2]
+            eNm1_old = ez[NX - 1]
         hy[:-1] -= (DT / DX) * (ez[1:] - ez[:-1])
         if modo == "lar" and n_d > 0:
             jz[i0:i1] += acople * ez[i0:i1]
         ez[1:] -= (DT / DX) * (hy[1:] - hy[:-1]) + DT * jz[1:]
         ez[I_SRC] -= DT * jsrc[n]
+        if mur:
+            ez[0] = e1_old + C_MUR * (ez[1] - e0_old)
+            ez[NX - 1] = eNm2_old + C_MUR * (ez[NX - 2] - eNm1_old)
         np.multiply(ez, damp, out=ez)
         if modo == "pec":
             ez[i0:i1] = 0.0
         if n >= n0:
-            mues[n - n0] = ez[I_MON]
+            if observable_vmas:
+                mues[n - n0] = 0.5 * (ez[I_MON] + ETA0 * hy[I_MON])
+                retro[n - n0] = 0.5 * (ez[I_MON] - ETA0 * hy[I_MON])
+            else:
+                mues[n - n0] = ez[I_MON]
+                retro[n - n0] = 0.0
+            lamina[n - n0] = float(np.max(np.abs(ez[i0:i1]))) if i1 > i0 else 0.0
             tvec[n - n0] = (n + 1) * DT
     A, B, V, res = estimar(mues, tvec, w0)
     return dict(w0=w0, n_d=n_d, modo=modo, omega_p=omega_p, esponja=esponja,
-                celda_lamina=[i0, i1], ventana=[n0, NT - 1],
+                celda_lamina=[i0, i1], ventana=[n0, nt - 1], nt=nt, mur=mur,
+                observable=("V+" if observable_vmas else "E_z"),
                 A=A, B=B, V=V, residuo=res,
                 residuo_rel=(res / V if V > 0.0 else 0.0),
                 pico_ventana=float(np.max(np.abs(mues))),
                 suma_campo=float(np.sum(ez)),
                 suma_abs_campo=float(np.sum(np.abs(ez))),
-                muestra=mues)
+                muestra=mues, muestra_retro=retro, muestra_lamina=lamina)
 
 
 def sec(t):
@@ -245,9 +298,12 @@ print("  m_exacto: regresion sobre los T de 7 cifras = %.6f · regresion sobre T
       " maquina = %.6f · m_teor = %.6f" % (M_EXACTO_7CIF, M_EXACTO_CALC, M_TEOR))
 
 sec("B. INSTRUMENTO")
-print("  dx = %.10e (lam_p/40) · dt = %.10e (0.99 dx/c) · dt*wp = %.10e · N_t = %d"
-      % (DX, DT, DT * OMEGA_P, NT))
-print("  esponja: sigma(x) = %.1f (d/%d)^4 · integrador exp(-sigma dt) · damper minimo = %.6e"
+print("  dx = %.10e (lam_p/40) · dt = %.10e (0.99 dx/c) · dt*wp = %.10e" % (DX, DT, DT * OMEGA_P))
+print("  N_t instrumentado = %d pasos [pre-registro sellado: %d] · ventana LSQ = ultimos %d pasos"
+      % (NT_INSTRUMENTADO, NT, N_VENTANA))
+print("  frontera instrumentada: esponja APAGADA (sigma = %.1f) · Mur 1D con c_mur = %.12f"
+      % (SIGMA_ESPOJA_INSTR, C_MUR))
+print("  esponja sellada (referencia, no usada por la instrumentacion): sigma(x) = %.1f (d/%d)^4 · damper minimo = %.6e"
       % (SIGMA_MAX, N_ABS, DAMP[0]))
 print("  fuente: s(t) = sin^2(pi t/(2 T_rampa)), s = 1 despues · J = s(t) sin(w0 t)")
 print("    w1 = %.3f wp: T_rampa = %.6f = %d pasos · tau1 = %.4f pasos · n_rampa = %d"
@@ -297,6 +353,7 @@ print("  %-8s %-6s %-9s %-18s %-18s %-11s %-11s"
 T_ESC = []
 for k, nd in enumerate(ND):
     r = correr(W1, nd, "lar")
+    r_esc = r
     t = (r["V"] / r1["V"]) ** 2
     T_ESC.append(t)
     print("  %-8.2f %-6d %-9.4f %-18.10e %-18.10e %-11.6f %.3e"
@@ -323,10 +380,43 @@ for k, nd in enumerate(ND):
           % (D_TILDE[k], nd, t, T_EXACTO_W2[k], t / T_EXACTO_W2[k], r["residuo_rel"]))
 print("  minimo medido = %.10e   [umbral: >= %.4f]" % (min(T_PAS), TOL_T2))
 
+sec("§12. VALIDACION INSTRUMENTAL (frontera Mur 1D, observable V+ y envolvente)")
+print("  ventana LSQ: %d pasos = %.4f periodos de w1 = %.4f periodos de w2"
+      % (N_VENTANA, N_VENTANA * DT / (2 * math.pi / W1), N_VENTANA * DT / (2 * math.pi / W2)))
+print("  frontera: esponja APAGADA (sigma = %.1f) · Mur 1D 1er orden · c_mur = %.12f"
+      % (SIGMA_ESPOJA_INSTR, C_MUR))
+print("  observable en la celda %d: V+ = 0.5 (E_z + eta0 hy) · V- = 0.5 (E_z - eta0 hy) · eta0 = %.12f"
+      % (I_MON, ETA0))
+r_borde = float(np.max(np.abs(r1["muestra_retro"])) / np.max(np.abs(r1["muestra"])))
+r_cerr = correr(W1, 0, "vacio", damp=DAMP_SIN, mur=False, esponja="Mur OFF (dominio cerrado)")
+r_borde_c = float(np.max(np.abs(r_cerr["muestra_retro"])) / np.max(np.abs(r_cerr["muestra"])))
+ok_rb = r_borde <= TOL_R_BORDE
+ok_rc = r_borde_c > 1.0e-2
+print("  |r_borde| vacio con Mur ON    = %.6e   [§12.A exige <= %.1e]  %s"
+      % (r_borde, TOL_R_BORDE, "CUMPLE" if ok_rb else "FALLA"))
+print("  |r_borde| CONTROL con Mur OFF = %.6e   [declarado: O(1), cierra el limite superior]  %s"
+      % (r_borde_c, "CUMPLE" if ok_rc else "FALLA"))
+print("  DECLARACION: |r_borde| = max|V-| / max|V+| sobre la ventana LSQ en el monitor; el control")
+print("    con la frontera apagada prueba que el mismo metro SI ve reflexion cuando existe.")
+picos_ciclo = np.array([float(np.max(c)) for c in np.array_split(r_esc["muestra_lamina"], 3)])
+env_rel = np.array([abs(picos_ciclo[k + 1] - picos_ciclo[k]) / picos_ciclo[k]
+                    for k in range(len(picos_ciclo) - 1)])
+env_max = float(np.max(env_rel))
+ok_env = env_max < TOL_ENVOLVENTE
+print("")
+print("  envolvente de la lamina (max|E_z| en la lamina, d_tilde = 1.00) por ciclo de w1: %s"
+      % ", ".join("%.6e" % p for p in picos_ciclo))
+print("  variacion relativa maxima entre ciclos consecutivos = %.6e   [§12.C exige < %.1e]  %s"
+      % (env_max, TOL_ENVOLVENTE, "CUMPLE" if ok_env else "FALLA"))
+print("  DECLARACION: la envolvente se mide como el maximo de |E_z| sobre las celdas de la lamina")
+print("    en cada paso de la ventana LSQ, tomada por ciclo de w1 (3 ciclos de %.3f pasos)." % (N_VENTANA / 3.0))
+print("  validaciones §12: borde %s · control %s · envolvente %s  (no alteran el RC de los sellos)"
+      % ("CUMPLE" if ok_rb else "FALLA", "CUMPLE" if ok_rc else "FALLA", "CUMPLE" if ok_env else "FALLA"))
+
 sec("G. EXTRA DECLARADO DEL INSTRUMENTO (no es criterio: existe para que el metro pueda diferir)")
-r4 = correr(W1, 0, "vacio", damp=DAMP_SIN, esponja="apagada")
+r4 = r_cerr
 T4 = (r4["V"] / r1["V"]) ** 2
-print("  G1 esponja apagada (sigma_max = 0, dominio cerrado): V = %.9e · T = %.9e · residuo_rel = %.3e"
+print("  G1 dominio cerrado (sigma = 0, frontera Mur APAGADA): V = %.9e · T = %.9e · residuo_rel = %.3e"
       % (r4["V"], T4, r4["residuo_rel"]))
 print("     => el mismo estimador SI puede dar T distinto de 1: T = 1 exacto solo ocurre cuando el")
 print("        camino es identico.  Control positivo de respuesta del instrumento.")
@@ -355,8 +445,10 @@ RES = dict(
     t_utc_arranque=T_UTC_ARRANQUE,
     t_utc_cierre=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     sellos=dict(filas=len(FILAS_SELLO), rojas=FALLOS_SELLO),
-    instrumento=dict(NX=NX, NT=NT, dx=DX, dt=DT, dt_wp=DT * OMEGA_P, N_ABS=N_ABS,
-                     sigma_max=SIGMA_MAX, I_SRC=I_SRC, I_SLAB=I_SLAB, I_MON=I_MON,
+    instrumento=dict(NX=NX, NT=NT, nt_instrumentado=NT_INSTRUMENTADO, dx=DX, dt=DT,
+                     dt_wp=DT * OMEGA_P, N_ABS=N_ABS, sigma_max=SIGMA_MAX,
+                     sigma_espoja_instrumentado=SIGMA_ESPOJA_INSTR,
+                     I_SRC=I_SRC, I_SLAB=I_SLAB, I_MON=I_MON,
                      N_VENTANA=N_VENTANA, n_rampa_w1=n_rampa(W1), n_rampa_w2=n_rampa(W2)),
     escalera=dict(d_tilde=list(D_TILDE), N_d=list(ND), alpha_d=list(ALPHA_D),
                   T_exacto=list(T_EXACTO_W1), T_medido=list(T_ESC),
@@ -366,7 +458,12 @@ RES = dict(
     piso=dict(T=T3, V=r3["V"]),
     vacio=dict(V_ref_w1=r1["V"], V_ref_w2=r1b["V"], T=T2,
                bit_identico=bool(np.array_equal(r1["muestra"], r2["muestra"]))),
-    extra_esponja_apagada=dict(V=r4["V"], T=T4, residuo_rel=r4["residuo_rel"]),
+    instrumentacion_s12=dict(sigma_espoja=SIGMA_ESPOJA_INSTR, nt=NT_INSTRUMENTADO,
+                             mur=MUR_ACTIVO, c_mur=C_MUR, i_mon=I_MON,
+                             r_borde=r_borde, r_borde_control=r_borde_c,
+                             tol_r_borde=TOL_R_BORDE,
+                             envolvente_max=env_max, tol_envolvente=TOL_ENVOLVENTE),
+    extra_dominio_cerrado=dict(V=r4["V"], T=T4, residuo_rel=r4["residuo_rel"]),
     criterios=[dict(nombre=n, cumple=bool(ok), detalle=d) for n, ok, d in CRIT],
 )
 
