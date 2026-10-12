@@ -147,3 +147,87 @@ T_UTC_S de verificación aritmética: 2026-10-12T06:59:18Z.
 Ventana declarada de la aritmética: constantes verificadas con python3 en doble precisión; α d = 12.3125; prefactor = 0.614400; T(ω₁) = 1.241562e−11; umbral 1e−8 equivalente a α d = 8.9668 y a d = 1.4565 λ_p; n = 0.866025; R = 0.005155; F = 0.020833; β d = 21.7656 radianes; T mínimo de la banda pasante = 0.979592.
 
 Estado de las tres observaciones de la sección 10: declaradas, no adjudicadas. Este pre-registro no las resuelve; las expone para que la decisión quede registrada antes de la primera corrida.
+
+## §11. Adenda de Adjudicación: Escalera Exacta, Estimador LSQ y Piso PEC
+
+UNIVERSO DECLARADO de esta adenda: una lámina de plasma frío equivalente, cuatro espesores adimensionales, dos controles de instrumento y una función de transmisión de potencia. MOTOR: aritmética de doble precisión ejecutada con python3 antes de sellar, más el arnés determinista de pre-vuelo. UNIDAD: transmitancia adimensional y razón relativa de pendiente. VENTANA: el reloj UTC declarado en la parte I.
+
+ESTADO: adjudicación ordenada de las tres observaciones declaradas en la sección 10, con las cifras exactas medidas. Esta adenda sustituye, en lo que toca, los criterios de las secciones 4, 6 y 9. El cuerpo anterior no se edita: el archivo es de solo apéndice.
+
+### A. Choque 1, el umbral de corte de la sección 4
+
+Se retira el umbral ciego T_medido(w1) <= 1e-8. Motivo medido: ese umbral exige alfa d = 8.9668, o sea una lámina de 1.4565 lambda_p, y la escalera adjudicada llega hasta 1.00 lambda_p. El umbral quedaba fuera del alcance del propio objeto que debía juzgar.
+
+Criterio de paso nuevo, en dos partes, ambas obligatorias.
+
+Primera parte, pendiente de la escalera: error relativo de la regresión frente a la curva exacta, |m_medido - m_exacto| / |m_exacto| <= 0.02, con m_exacto = -12.3900.
+
+Segunda parte, cota en el punto profundo: T_medido(w1, d aprox = 1.00) <= 5.0e-6. El margen es un factor 1.81 sobre el valor exacto 2.761929e-06 y su función es descartar fuga pasante del absorbente, no medir el decaimiento.
+
+### B. Choque 2, valores congelados de la lámina
+
+Se congelan los valores exactos de la lámina finita, no los de la forma asintótica. Medido: la forma asintótica, prefactor por exponencial, subestima la transmitancia en el punto somero un 6.17 por ciento y queda declarada no apta para la escalera.
+
+Tabla congelada de la escalera adjudicada.
+
+d aprox = 0.25: alfa d = 1.5391; T_exacto = 3.015020e-02; N_d = 10 celdas.
+
+d aprox = 0.50: alfa d = 3.0781; T_exacto = 1.306491e-03; N_d = 20 celdas.
+
+d aprox = 0.75: alfa d = 4.6172; T_exacto = 5.999000e-05; N_d = 30 celdas.
+
+d aprox = 1.00: alfa d = 6.1562; T_exacto = 2.761929e-06; N_d = 40 celdas.
+
+Pendiente exacta de la regresión sobre esa tabla: m_exacto = -12.3900, con desvío 0.6295 por ciento frente a la pendiente asintótica m_teor = -12.3125. Comparación declarada: el ajuste sobre la forma asintótica reproduce m_teor con desvío 0.0000 por ciento por construcción y por eso no discrimina nada; el ajuste sobre la forma exacta sí discrimina, dentro de la tolerancia de 2 por ciento.
+
+Quedan retirados los dos puntos extremos de la serie anterior: d aprox = 2.0 predice 1.241562e-11 y d aprox = 4.0 predice 2.508913e-22, ambos por debajo del piso relativo de la doble precisión sobre una energía de referencia normalizada.
+
+### C. Hueco 1, espesor del testigo PEC
+
+El control de piso se calibra con una placa conductora perfecta, E_z = 0 en su interior, de espesor d aprox = 1.00, idéntico al espesor máximo evaluado, con N_d = 40 celdas.
+
+La energía medida en el monitor con esa placa fija la transmitancia de piso T_piso. Criterio de validez del instrumento: T_piso <= 1.0e-08.
+
+Regla de paso: T_medido(w1, d aprox = 1.00) > 10 T_piso. Si no se cumple, EL EXPERIMENTO SE ANULA.
+
+### D. Hueco 2, el estimador
+
+Se formaliza la sustitución del estimador de la sección 6. La transmitancia deja de medirse como razón de magnitudes del bin central de una DFT y pasa a medirse como razón de amplitudes del ajuste armónico por mínimos cuadrados.
+
+Ventana del ajuste: los últimos tres periodos estacionarios de la portadora de prueba, tres por tau1 aproximadamente 606 pasos, sobre el intervalo cerrado que va de N_t - 606 a N_t, con N_t = 4000.
+
+Fuente: onda continua durante toda la ventana, con envolvente de rampa suave de tipo seno al cuadrado sobre los primeros cinco ciclos de la portadora, aproximadamente 1010 pasos.
+
+Presupuesto temporal medido: rampa 1010 pasos, más tránsito de 20 lambda_p, 808 pasos, más tres periodos finales, 606 pasos, da un mínimo de 2424 pasos. La ventana sellada de 4000 pasos lo cubre con 1576 pasos de margen.
+
+### E. Hueco 3, actualización de la sección 4
+
+La sección 4 queda gobernada por la cota T_medido(w1, d aprox = 1.00) <= 5.0e-06 y por la concordancia de pendiente |m_medido - m_exacto| / |m_exacto| <= 0.02 con m_exacto = -12.3900. El escalar 1e-8 deja de ser criterio de paso y queda registrado como el valor que esta adenda retira.
+
+### F. Estado de las tres observaciones de la sección 10
+
+Observación 1, presupuesto temporal: adjudicada por el lado de la fuente. La excitación es onda continua con rampa suave, no un pulso; la exigencia de un pulso de 40 periodos queda sin efecto.
+
+Observación 2, rango dinámico de la escalera: adjudicada. Los dos extremos que caían bajo el piso quedan retirados y la escalera se corre a 0.25, 0.50, 0.75 y 1.00 lambda_p.
+
+Observación 3, alcance de la corrida de piso: adjudicada. Se añade el testigo PEC de la parte C, que mide el piso en la banda de corte profundo y no sólo donde la transmitancia vale uno.
+
+### G. Control positivo sobre la escalera nueva
+
+El criterio T_medido(w2) >= 0.97 de la sección 5 se conserva y se evalúa en cada punto de la escalera nueva. Valores teóricos del escalón finito, medidos: 0.996534 en 0.25; 0.988544 en 0.50; 0.981434 en 0.75; 0.979845 en 1.00. El mínimo es 0.979845 y cumple el criterio. Si el control positivo no alcanza 0.97, EL EXPERIMENTO SE ANULA.
+
+### H. Colisión de etiqueta declarada
+
+Esta adenda usa como encabezado el rótulo con el signo de sección y el número 11; la sección numerada existente con el mismo número usa el rótulo sin ese signo. Ambos coexisten y ninguno se renumera: la pieza anterior no se parchea.
+
+### I. Tupla y sello de esta escritura
+
+TARGET: PREREGISTRO_PLASMA_ADE_20261012.md, dentro del repositorio plasma-ade.
+
+BLOB_PRE: c5d3f9171bb7ae0c. LINEAS_PRE: 149.
+
+HUELLA de esta escritura: el encabezado de nivel dos que abre este bloque.
+
+Gate determinista de pre-vuelo corrido antes de la escritura, con código de salida 0.
+
+T_UTC_S de esta escritura: 2026-10-12T16:38:40Z
