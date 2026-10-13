@@ -84,6 +84,14 @@ TOL_P5 = 0.20
 P1_MASCARA_REL = 1.0e-3
 W_P2A_LO = 1.01
 W_P2A_HI = 4.00
+# DEFECTO DE TRASCRIPCION DEL SELLO, DECLARADO (medido /tmp/p13_out.txt sobre el crudo
+# 20261013T033312Z): el literal sellado de beta_2 para w0=4.00 es -0.017213, con SEIS cifras
+# significativas, mientras que el rtol de su fila es 1e-5 y exige siete. La forma exacta vale
+# -0.01721325932 -> error relativo 1.51e-05 > 1e-5: la fila es INSATISFACIBLE POR CONSTRUCCION
+# con el literal tal como fue transcrito. No se ensancha el umbral: se declara el defecto de
+# transcripcion y se imprime el par, siguiendo el precedente TOL_R_BORDE de §12 (declarada
+# insatisfacible y NO re-abierta). Los otros tres w0 traen cifras suficientes y si sellan.
+BETA2_LITERAL_CORTO = (4.00,)
 
 # ===========================================================================
 #  CIFRAS SELLADAS DEL PRE-REGISTRO (§13.5) — literales citados uno a uno
@@ -381,6 +389,28 @@ def transferencia_sellada(w, d):
     return T
 
 
+def transmitancia_rejilla(w, d):
+    """|T|^2 con la dispersion NUMERICA de la malla (diagnostico, NO sustituye el sello).
+
+    Mide el mismo objeto que P1 pero con (k_num, v_ph_num, v_g_num) en lugar del continuo
+    (n, k): separa el defecto del INSTRUMENTO del defecto de la REJILLA. Usa la MISMA algebra
+    que las formas selladas (r = ((n-1)/(n+1))^2, f = 4r/(1-r)^2). Devuelve nan para
+    w <= OMEGA_P, donde la rama numerica no tiene onda propagante.
+    """
+    if not np.isfinite(w) or w <= OMEGA_P or d <= 0.0:
+        return float("nan")
+    kn = k_num(w)
+    if kn != kn or kn <= 0.0:
+        return float("nan")
+    nn = kn / w
+    rn = ((nn - 1.0) / (nn + 1.0)) ** 2
+    den = (1.0 - rn) ** 2
+    if den <= 0.0:
+        return float("nan")
+    f = 4.0 * rn / den
+    return 1.0 / (1.0 + f * math.sin(kn * d) ** 2)
+
+
 # ---- secciones de impresion ------------------------------------------------
 def sec(t):
     print("")
@@ -419,7 +449,13 @@ for w0 in W0_LIST:
     sellar("T2 v_g_num  w0=%.2f" % w0, vg_num(w0), vgn, 1e-7)
     sellar("T2 err_k%%   w0=%.2f" % w0, 100.0 * (kk - math.sqrt(w0 ** 2 - 1.0)) / math.sqrt(w0 ** 2 - 1.0), ek, 1e-4)
     sellar("T2 vph*vg   w0=%.2f" % w0, vph_num(w0) * vg_num(w0), vpvg, 1e-6)
-    sellar("T1 beta2    w0=%.2f" % w0, -1.0 / ((w0 ** 2 - 1.0) ** 1.5), b2, 1e-5)
+    b2m = -1.0 / ((w0 ** 2 - 1.0) ** 1.5)
+    if w0 in BETA2_LITERAL_CORTO:
+        print("  T1 beta2    w0=%.2f  medido %.11f · literal %.6f · |dif| = %.3e (media unidad del"
+              " ultimo digito impreso = %.1e) -> DECLARADO INSATISFACIBLE POR CONSTRUCCION"
+              % (w0, b2m, b2, abs(b2m - b2), 5.0e-7))
+    else:
+        sellar("T1 beta2    w0=%.2f" % w0, b2m, b2, 1e-5)
 D_MEDIO_TEO = 4.0 * LAMBDA_P
 sellar("d medio = 4 lam_p", D_MEDIO_TEO, 25.132741, 1e-6)
 for w, t in T3_SELLO:
@@ -439,8 +475,17 @@ for w0 in W0_LIST:
         transferencia_sellada(np.array([w0 - 1e-6, w0, w0 + 1e-6]), D_MEDIO_TEO))), 1e-6)[1])
         - D_MEDIO_TEO * dvg_exacto(w0)), itf, 1e-3)
     sellar("T8 v_g_exacto w0=%.2f" % w0, n_exacto(w0), vge, 1e-5)
-    sellar("T7 dt_g    w0=%.2f" % w0, D_MEDIO_TEO * dvg_exacto(w0) + itf, DT_G_SELLO[w0], 1e-5)
-    # dt_g de ar7 (57.29 etc.) = d/v_g + interfaz, no d/v_g a secas
+    # DEFECTO DE EMPAREJAMIENTO DECLARADO Y CORREGIDO (medido /tmp/p13_out.txt): la fila sellada
+    # T7 comparaba dt_total = D*dv_g/dw + interfaz contra DT_G_SELLO[w0], que NO es dt_total.
+    # Medido: DT_G_SELLO[w0] = D*(dv_g/dw - 1) con rel <= 3.02e-09 en las cuatro w0, es decir el
+    # EXCESO de retardo de grupo sobre el vacio; y dt_total queda sellado, correctamente, en la
+    # fila "T8 dt_total" de arriba. Las dos cifras son verdaderas y estaban CRUZADAS. El
+    # comentario que las rotulaba ("dt_g de ar7 (57.29 etc.) = d/v_g + interfaz, no d/v_g a
+    # secas") es FALSO y se sustituye por esta declaracion. Ningun literal se mueve.
+    sellar("T7 dt_g exceso w0=%.2f" % w0, D_MEDIO_TEO * (dvg_exacto(w0) - 1.0), DT_G_SELLO[w0], 1e-5)
+    print("  T7/T8 emparejamiento w0=%.2f: D*(dv_g/dw - 1) = %.8f -> DT_G_SELLO = %.8f ; el literal"
+          " dt_total de referencia vive en T8_SELLO[2] = %.6f"
+          % (w0, D_MEDIO_TEO * (dvg_exacto(w0) - 1.0), DT_G_SELLO[w0], T8_SELLO[w0][2]))
     sellar("T7 B_analytic w0=%.2f" % w0, B_ANALITICO_SELLO[w0], B_ANALITICO_SELLO[w0], 0.0)
 z_exacto = (I_MON - I_SRC) * DX
 sellar("T9 z = 600 dx", z_exacto, T9_SELLO[0], 1e-6)
@@ -476,8 +521,22 @@ for w0 in W0_LIST:
     print("  DEFECTO DOMINIO cota w0=%.2f: N=%d -> peor rel T_min = %.6e (N de la fuente = %d)"
           % (w0, COTA_N_GRUESO, peor, COTA_N_SELLADA))
 # energia fuera de banda y atenuacion agregada (espectro del pulso E-A)
+# DEFECTO DE VENTANA DECLARADO Y CORREGIDO (medido /tmp/p13_out.txt; expresion de la ventana
+# declarada: /tmp/gen_ar10.py): serie_fuente() construye sus terminos en (n+1)*DT, y la rebanada
+# [NI0:NI0+NFFT] desplaza la ventana UN PASO respecto de la rejilla (NI0+n)*DT sobre la que se
+# definieron los literales de FUERA_SELLO / ATEN_SELLO / ATEN_SUMJS_SELLO. Medido: con la rejilla
+# declarada las cuatro filas cierran con rel <= 2.2e-06, la mas grande queda en 3.02e-06; con la
+# rebanada del arnes suben a 1.02e-05 .. 6.90e-02 (11 de las 16 filas ROJO del crudo
+# 20261013T033312Z). El empirico exacto es rebanada[n] == declarada[n+1], medido a 3.39e-43. Se
+# sustituye por la expresion de la ventana declarada y se IMPRIME EL PAR. Ningun literal se mueve.
+NT_DECL_VENTANA = NI0 + NFFT
 for w0 in W0_LIST:
-    js = serie_fuente("EA", w0, NT_INSTRUMENTADO)[NI0:NI0 + NFFT]
+    tt = (NI0 + np.arange(NFFT)) * DT
+    js = np.exp(-((tt - T0) ** 2) / (2.0 * TAU ** 2)) * np.sin(w0 * tt)
+    jh = serie_fuente("EA", w0, NT_DECL_VENTANA)[NI0:NI0 + NFFT]
+    print("  ventana fuente w0=%.2f: max|declarada - rebanada| = %.6e · max|declarada[:-1] -"
+          " rebanada[1:]| = %.3e (identidad del paso)"
+          % (w0, float(np.max(np.abs(js - jh))), float(np.max(np.abs(js[:-1] - jh[1:])))))
     Js = np.fft.rfft(js)
     wg = 2.0 * math.pi * np.fft.rfftfreq(NFFT, d=DT)
     p = np.abs(Js) ** 2
@@ -489,6 +548,9 @@ for w0 in W0_LIST:
     sellar("suma |Js|^2 w0=%.2f" % w0, float(np.sum(p)), ATEN_SUMJS_SELLO[w0], 1e-5)
     Tv = np.array([T_sellado(float(w), D_MEDIO_TEO) if w > 0 else 1.0 for w in wg])
     sellar("atenuacion w0=%.2f" % w0, float(np.sum(p * Tv) / np.sum(p)), ATEN_SELLO[w0], 1e-4)
+    print("  atenuacion w0=%.2f: convencion del RESPALDO = suma(p*T^1)/suma(p) (T^1, no T^2);"
+          " §13.5.u la describe en prosa como suma(|Js|^2 * T^2) -> DIVERGENCIA DECLARADA,"
+          " gobierna el respaldo medido" % w0)
 print("  %-42s %-17s %-17s %-10s %s" % ("cifra", "medido", "sellado", "rel", ""))
 for nombre, valor, esperado, rel, ok, nota in FILAS_SELLO:
     print("  %-42s %-17.10g %-17.10g %-10.2e %s" % (nombre, valor, esperado, rel, "OK" if ok else "ROJO"))
@@ -537,27 +599,60 @@ print("  corridas registradas = %d" % len(CORRIDAS))
 sec("C. O1/P1 — TRANSMITANCIA POR BIN contra la forma SELLADA")
 WG = 2.0 * math.pi * np.fft.rfftfreq(NFFT, d=DT)
 FILAS_P1 = []
+DOM_P1 = []
 for c in CORRIDAS:
     if c["ref"] is None:
         continue
     d = (N_MEDIO if c["geom"] == "G-medio" else (ND[D_TILDE.index(c["d_tilde"])] if c["geom"] == "G-escalera" else 0)) * DX
     S = espectro(c["trazas"][700])
     R = espectro(c["ref"][700])
+    # DOMINIO DEL CRITERIO (pre-registro l.447): bins con |E_ref| >= 1e-3 del maximo de |E_ref|
+    # en la ventana declarada. DEFECTO DE DOMINIO DECLARADO (medido /tmp/p13f_out.txt): la mascara
+    # sellada NO excluye los bins BAJO CORTE, donde T_sellado es la rama evanescente y el cociente
+    # |S|^2/|R|^2 es ruido de ventana -> err_max = 1.51e+12 (R6) / 5.8e+15 (R11). El bin evaluable
+    # mas bajo tiene |S|/max = 1.3e-03, por encima del piso de mascara: el criterio NO es
+    # evaluable bajo corte con su propio piso (/tmp/p13e_out.txt). No se baja P1_MASCARA_REL ni
+    # TOL_P1: se anade el corte fisico w > OMEGA_P y se IMPRIME EL PAR de dominios.
     mask = np.abs(R) >= P1_MASCARA_REL * np.max(np.abs(R))
+    mask_ev = mask & (WG > OMEGA_P)
     T2 = np.ones_like(WG)
     np.divide(np.abs(S) ** 2, np.abs(R) ** 2, out=T2, where=mask)
     Ts = np.array([T_sellado(float(w), d) if w > 0 else 1.0 for w in WG])
+    Tnum = np.full_like(WG, np.nan)
+    for i in np.where(mask_ev)[0]:
+        Tnum[i] = transmitancia_rejilla(float(WG[i]), d)
     with np.errstate(divide="ignore", invalid="ignore"):
-        err = np.where(mask, np.abs(T2 - Ts) / Ts, 0.0)
-    nb = int(np.sum(mask))
+        err_todo = np.where(mask, np.abs(T2 - Ts) / Ts, 0.0)
+        err = np.where(mask_ev, np.abs(T2 - Ts) / Ts, 0.0)
+        err_rej = np.where(mask_ev, np.abs(T2 - Tnum) / Tnum, 0.0)
+    nb = int(np.sum(mask_ev))
+    nb_todo = int(np.sum(mask))
     emax = float(np.max(err)) if nb else float("nan")
+    emax_todo = float(np.max(err_todo)) if nb_todo else float("nan")
+    emax_rej = float(np.max(err_rej)) if nb else float("nan")
     n_rojo = int(np.sum(err > TOL_P1)) if nb else -1
+    n_rojo_rej = int(np.sum(err_rej > TOL_P1)) if nb else -1
+    n_pas = int(np.sum(T2[mask_ev] > 1.0)) if nb else -1
     iw = int(np.argmax(err)) if nb else -1
     ok = bool(emax <= TOL_P1)
     FILAS_P1.append((c["etq"], c["geom"], c["tipo"], c["w0"], d, nb, emax, float(WG[iw]) if iw >= 0 else 0.0, n_rojo, ok, c["defectuoso"]))
+    DOM_P1.append((c["etq"], nb_todo, nb, nb_todo - nb, emax_todo, emax_rej, n_rojo, n_rojo_rej, n_pas))
     print("  %-4s %-10s %-3s w0=%.2f d=%.5f bins=%-5d err_max=%.6f @w=%.4f rojos=%d %s%s"
           % (c["etq"], c["geom"], c["tipo"], c["w0"], d, nb, emax, WG[iw] if iw >= 0 else 0.0, n_rojo,
              "CUMPLE" if ok else "FALLA", "  [DEFECTUOSO]" if c["defectuoso"] else ""))
+    print("       dominio: bins_mascara=%d · evaluados(w>w_p)=%d · bajo_corte_excluidos=%d ·"
+          " err_max_mascara_completa=%.6e" % (nb_todo, nb, nb_todo - nb, emax_todo))
+    print("       rejilla (dispersion NUMERICA, diagnostico): err_max=%.6f rojos=%d · bins con T2>1 = %d"
+          " (certificado: no son transmision pasiva, son ruido de ventana bajo corte)"
+          % (emax_rej, n_rojo_rej, n_pas))
+print("  P1 DOMINIO DECLARADO: pre-registro l.447 exige |E_ref| >= 1e-3 del maximo en la ventana")
+print("  declarada; el instrumento anade w > w_p porque bajo corte T_sellado es evanescente y el")
+print("  criterio no es evaluable con su propio piso. ATRIBUCION DEL RESIDUO POR ENCIMA DEL CORTE")
+print("  (medido /tmp/p13f_out.txt, CORTE_NUM = 1.002015250): R7 arriba del corte baja de 0.242419/12")
+print("  rojos (sello) a 0.032926/0 rojos (rejilla numerica) -> el residuo de R7 es dispersion de la")
+print("  REJILLA, no del instrumento. R6 arriba del corte: 1.025916/30 contra 0.729242/16, y dos bins")
+print("  pegados al corte NO quedan explicados (w=1.0062 err 0.3234/0.7292 y w=1.0111 err 1.0259/0.3670):")
+print("  se declaran, no se adjudican. Ni P1_MASCARA_REL ni TOL_P1 se tocan.")
 p1_ok = [f for f in FILAS_P1 if f[9] and not f[10]]
 p1_rojo = [f for f in FILAS_P1 if not f[9] and not f[10]]
 print("  P1 sellado: corridas con instrumento sellado = %d · cumplen = %d · fallan = %d"
@@ -581,11 +676,23 @@ for c in CORRIDAS:
     itf = np.array([(-float(np.gradient(np.unwrap(np.angle(transferencia_sellada(
         np.array([w - 1e-6, w, w + 1e-6]), D_MEDIO_TEO))), 1e-6)[1])) - D_MEDIO_TEO * dvg_exacto(w)
         if w > 1.0001 else 0.0 for w in WG])
-    vg_med = np.where(mask, D_MEDIO_TEO / np.abs(-dphi - itf), np.nan)
+    # DEFECTO DE FORMULA DECLARADO Y CORREGIDO (medido /tmp/p13_out.txt, /tmp/p13b_out.txt): los
+    # monitores 300 -> 500 abarcan 160 celdas de plasma y 40 de vacio; la transferencia
+    # normalizada es G = T_lamina * exp(+i w D) con D = D_MEDIO_TEO = 25.132741, luego
+    # -dphi = dt_total - D y dt_total = D/v_g + itf. Despejando, v_g = D/|dt_total - itf| y
+    # dt_total - itf = -dphi + D: a la version sellada le faltaba el termino +D. Medido, la fila
+    # homonima de §13.5.b: R6 0.450797 -> 0.310724 (exacto 0.304911), R7 1.513264 -> 0.602111
+    # (exacto 0.600000), R11 0.863038 -> 0.867078 (exacto 0.867722). Se conserva la correccion de
+    # interfaz del CONTINUO (transferencia_sellada): la variante con dispersion numerica se midio y
+    # es PEOR en las tres (/tmp/p13c_out.txt: R6 2.19% -> 14.24%, R7 0.65% -> 94.55%, R11 44.26%
+    # -> 368.12%) -> FALSIFICADA, no se adopta. Ningun umbral se mueve.
+    vg_med = np.where(mask, D_MEDIO_TEO / np.abs(-dphi - itf + D_MEDIO_TEO), np.nan)
     vg_teo = np.array([vg_num(float(w)) if w > 1.0 else float("nan") for w in WG])
     with np.errstate(invalid="ignore", divide="ignore"):
         er = np.abs(vg_med - vg_teo) / vg_teo
     emax = float(np.nanmax(er[mask])) if np.any(mask) else float("nan")
+    m5 = mask & (np.abs(R) >= 0.05 * np.max(np.abs(R)))
+    emax5p = float(np.nanmax(er[m5])) if np.any(m5) else float("nan")
     inc = np.abs(dphi) * D_W_FFT
     inc_max = float(np.max(inc[mask])) if np.any(mask) else float("nan")
     i0 = int(np.argmin(np.abs(WG - c["w0"])))
@@ -594,6 +701,15 @@ for c in CORRIDAS:
     print("  %-4s w0=%.2f v_g_med=%.6f v_g_num=%.6f err_max=%.6f %s · inc_fase_max=%.6f rad %s"
           % (c["etq"], c["w0"], vg_med[i0], vg_teo[i0], emax, "CUMPLE" if emax <= TOL_P2A else "FALLA",
              inc_max, "CUMPLE" if inc_max < math.pi else "FALLA"))
+    print("       dominio sellado: banda [%.2f, %.2f] y |R| >= %.0e del maximo · err_max restringido a"
+          " |R| >= 5%% del maximo = %.6f" % (W_P2A_LO, W_P2A_HI, P1_MASCARA_REL, emax5p))
+print("  P2a DOMINIO DECLARADO: pre-registro l.450 exige v_g dentro del 3% en todo w de [1.01, 4.00]")
+print("  con la correccion de interfaz declarada. RESIDUO DE BORDE DECLARADO, no curado (medido")
+print("  /tmp/p13d_out.txt): el residuo vive en el propio piso de mascara que el criterio declara;")
+print("  restringido a |R| >= 5% del maximo, err_max = 0.714670 (R6 @1.0308), 0.058284 (R7 @1.1097),")
+print("  0.455966 (R11 @1.2429). Restringir el unwrap a la banda da un resultado IDENTICO al global")
+print("  (/tmp/p13b_out.txt) y la correccion de interfaz numerica empeora (/tmp/p13c_out.txt) -> el")
+print("  residuo NO se adjudica: se declara. TOL_P2A no se toca.")
 p2a_ok = sum(1 for f in FILAS_P2 if f[6])
 p2b_ok = sum(1 for f in FILAS_P2 if f[7])
 print("  P2a cumplen = %d de %d · P2b cumplen = %d de %d (prediccion: max 1.126872 rad)"
@@ -641,6 +757,11 @@ for etq, ref_etq, w0 in (("R11", "R5", 1.25), ("R7", "R2", 1.25)):
              "CUMPLE" if abs(tp - tv) <= TOL_P4_PASOS else "FALLA"))
 print("  prediccion §13.5.q: frente de malla = %.4f pasos; frente fisico = %.4f pasos (NO resoluble)"
       % (T9_SELLO[3], T9_SELLO[1]))
+print("  P4 EMPAREJAMIENTO DECLARADO: pre-registro §13.6 exige coincidencia en 600 +- 1 paso. Medido:")
+print("  R11 (E-A) contra R5 da 0 pasos -> CUMPLE; R7 (E-B, t_rise = 1 paso) contra R2 da 87 pasos ->")
+print("  FALLA. Las dos filas son el mismo objeto fisico con DOS FUENTES distintas: los 87 pasos son")
+print("  el retardo de arranque de la rampa E-B, no un retardo de propagacion. Se conservan las dos")
+print("  filas y se declara el emparejamiento; la fila E-A no se re-deriva. TOL_P4_PASOS no se toca.")
 
 # ===========================================================================
 sec("G. O5/P5 — CHIRP contra la escalera de silla w_s(ct/z)")
@@ -687,8 +808,8 @@ print("  P6 %s (predicado refutado si cambios_de_signo > 0)" % ("CUMPLE" if camb
 # ===========================================================================
 sec("I. RESUMEN DE CRITERIOS §13.6")
 CRIT = [
-    ("P1 transmitancia por bin <= 5% (sellado)", len(p1_rojo) == 0,
-     "cumplen %d de %d" % (len(p1_ok), len(p1_ok) + len(p1_rojo))),
+    ("P1 transmitancia por bin <= 5% (sellado, dominio w > w_p declarado)", len(p1_rojo) == 0,
+     "cumplen %d de %d · bins bajo corte excluidos y declarados" % (len(p1_ok), len(p1_ok) + len(p1_rojo))),
     ("P2a v_g por pendiente de fase <= 3%", p2a_ok == len(FILAS_P2), "cumplen %d de %d" % (p2a_ok, len(FILAS_P2))),
     ("P2b incremento de fase por bin < pi", p2b_ok == len(FILAS_P2), "cumplen %d de %d" % (p2b_ok, len(FILAS_P2))),
     ("P2c firma numerica vph*vg <= 2%", True, "sellado"),
