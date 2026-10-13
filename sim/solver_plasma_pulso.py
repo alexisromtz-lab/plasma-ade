@@ -206,12 +206,13 @@ def T_sellado(w, d):
 
 
 def n_exacto(w):
-    return math.sqrt(1.0 - (OMEGA_P ** 2) / (w ** 2))
+    # vectorizado: escalar -> np.float64 ; arreglo -> arreglo (gradiente de fase T8)
+    return np.sqrt(1.0 - (OMEGA_P ** 2) / (np.asarray(w, dtype=float) ** 2))
 
 
 def dndw_exacto(w):
     n = n_exacto(w)
-    return 1.0 / (n * w ** 3)
+    return 1.0 / (n * np.asarray(w, dtype=float) ** 3)
 
 
 def dvg_exacto(w):
