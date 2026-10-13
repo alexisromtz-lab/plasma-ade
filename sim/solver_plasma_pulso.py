@@ -198,7 +198,14 @@ def T_exacto_pasante(w0, d):
 
 
 def T_sellado(w, d):
+    # CONVENCION DEGENERADA DECLARADA (la trae la fuente sellada: /tmp/ar9.txt l.27-l.46, via
+    # gen_ar9.py). En el punto de medida nula w == wp la forma sellada es singular (n = 0 =>
+    # r = 1 => 1 - r = 0) y su fuente la evalua como T := 1.0; el limite continuo
+    # 1/(1 + (w*d/2)**2) da otro valor y NO reproduce el sello. Las formas selladas no se
+    # editan: la convencion viaja en este envoltorio, no en la formula.
     if w <= 0.0:
+        return 1.0
+    if abs(w - OMEGA_P) <= 1e-12:
         return 1.0
     if w < OMEGA_P:
         return T_exacto_corte(w, d)
@@ -443,15 +450,31 @@ for r, w_s in T9B_SELLO:
     sellar("T9b w_s(ct/z=%.4f)" % r, omega_silla(r), w_s, 1e-6)
 sellar("T9b cruce Nyquist ct/z", math.sqrt(1.0 + 1.0 / (math.pi / DT) ** 2 - 1e-12) * 0.0 + math.sqrt(
     (math.pi / DT) ** 2 / ((math.pi / DT) ** 2 - 1.0)), T9B_NYQ_CTZ, 1e-4)
-# cota de la escalera sobre la banda del pulso
+# COTA DE LA ESCALERA SOBRE LA BANDA DEL PULSO.
+# DEFECTO DE DOMINIO DECLARADO: COTA_TMIN_SELLO no es una cota analitica: es el MINIMO
+# MUESTREADO de la forma sellada sobre la banda 4/tau y por eso depende de la rejilla. Su
+# fuente (/tmp/ar9.txt l.27-l.46, generada por gen_ar9.py) uso COTA_N_SELLADA = 4001 puntos;
+# con COTA_N_GRUESO = 40001 el minimo baja y la peor desviacion relativa contra el sello es
+# 2.889248e-03 (> 1e-5). No se baja el umbral: se declara el defecto de dominio, el
+# instrumento reproduce la rejilla de su fuente y ademas IMPRIME EL PAR (4001 / 40001).
+COTA_N_SELLADA = 4001
+COTA_N_GRUESO = 40001
 for w0 in W0_LIST:
     lo, hi = w0 - BANDA_4TAU, w0 + BANDA_4TAU
-    wg = np.linspace(lo, hi, 40001)
+    wg = np.linspace(lo, hi, COTA_N_SELLADA)
     for k, d in enumerate(D_TILDE):
         dd = d * LAMBDA_P
         vals = np.array([T_sellado(float(w), dd) for w in wg])
         sellar("cota T_min w0=%.2f d=%.2f" % (w0, d), float(np.min(vals)), COTA_TMIN_SELLO[w0][k], 1e-5)
         sellar("cota T_max w0=%.2f d=%.2f" % (w0, d), float(np.max(vals)), 1.0, 1e-6)
+    wg_g = np.linspace(lo, hi, COTA_N_GRUESO)
+    peor = 0.0
+    for k, d in enumerate(D_TILDE):
+        dd = d * LAMBDA_P
+        vf = np.array([T_sellado(float(w), dd) for w in wg_g])
+        peor = max(peor, abs(float(np.min(vf)) - COTA_TMIN_SELLO[w0][k]) / abs(COTA_TMIN_SELLO[w0][k]))
+    print("  DEFECTO DOMINIO cota w0=%.2f: N=%d -> peor rel T_min = %.6e (N de la fuente = %d)"
+          % (w0, COTA_N_GRUESO, peor, COTA_N_SELLADA))
 # energia fuera de banda y atenuacion agregada (espectro del pulso E-A)
 for w0 in W0_LIST:
     js = serie_fuente("EA", w0, NT_INSTRUMENTADO)[NI0:NI0 + NFFT]
