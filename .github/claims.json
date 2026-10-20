@@ -1,0 +1,7 @@
+{
+  "huella": "HUELLA-CLAIMS-PLASMA-ADE-20261020",
+  "repo": "plasma-ade",
+  "clase": "C",
+  "estado": "SIN_DATO_MECANIZABLE",
+  "motivo": "0 artefactos .json y 0 .txt rastreados (medido con git ls-files el 2026-10-20): el repositorio publica prosa y codigo, y ninguna cifra tiene dato del que derivarse."
+}
