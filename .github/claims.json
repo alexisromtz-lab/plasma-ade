@@ -3,43 +3,47 @@
   "repo": "plasma-ade",
   "clase": "A",
   "acta": "HUELLA-PLASMA-ADE-CLAIMS-MECANIZABLE-20261020",
-  "nota": "El motivo SIN_DATO_MECANIZABLE (0 artefactos .json y 0 .txt rastreados) era cierto el dia que se escribio y hoy es falso por medicion: el crudo que porta estas cifras es el JSON que los dos solvers imprimen entre JSON_BEGIN y JSON_END, y se ejecuta en cada push. deriva apunta a tests/test_cifras_selladas.py, el parser independiente que ya recomputa los veredictos, y NO al testigo tests/test_claims_witness.py: un claims.json cuyo deriva nombrase a su propio testigo se verificaria a si mismo. polaridad es exacto en todos los claims porque los dos contadores (cumplidos y fallados) se cuentan directo sobre criterios[] y ninguno es un complemento aritmetico, a diferencia de la polaridad complemento de rf.",
+  "nota": "HUELLA-CLAIMS-PLASMA-DERIVACION-PERMANENTE-20261021: los nueve declaran su modo — siete derivan porque `cifras_cw`/`cifras_pulso` DEVUELVEN el JSON de su solver y el claim nombra dentro de el (el primer segmento de `ruta` selecciona el solver), y los dos que portan una transicion ('190 → 189', '16 → 0') se declaran testigo_permanente con el motivo medido. El motivo SIN_DATO_MECANIZABLE (0 artefactos .json y 0 .txt rastreados) era cierto el dia que se escribio y hoy es falso por medicion: el crudo que porta estas cifras es el JSON que los dos solvers imprimen entre JSON_BEGIN y JSON_END, y se ejecuta en cada push. deriva apunta a tests/test_cifras_selladas.py, el parser independiente que ya recomputa los veredictos, y NO al testigo tests/test_claims_witness.py: un claims.json cuyo deriva nombrase a su propio testigo se verificaria a si mismo. polaridad es exacto en todos los claims porque los dos contadores (cumplidos y fallados) se cuentan directo sobre criterios[] y ninguno es un complemento aritmetico, a diferencia de la polaridad complemento de rf.",
   "claims": [
     {
       "id": "sellos_cw",
       "afirma": "27 sellos",
       "dato": "sim/solver_plasma_cw.py",
-      "ruta": "sellos.filas",
-      "deriva": "parser:tests/test_cifras_selladas.py::test_cw_sellos_cierran",
+      "ruta": "cw.sellos.filas",
+      "deriva": "parser:tests/test_cifras_selladas.py::cifras_cw",
       "polaridad": "exacto",
-      "prosa": "README.md"
+      "prosa": "README.md",
+      "modo": "derivacion"
     },
     {
       "id": "rojas_cw",
       "afirma": "0 rojas",
       "dato": "sim/solver_plasma_cw.py",
-      "ruta": "sellos.rojas",
-      "deriva": "parser:tests/test_cifras_selladas.py::test_cw_sellos_cierran",
+      "ruta": "cw.sellos.rojas",
+      "deriva": "parser:tests/test_cifras_selladas.py::cifras_cw",
       "polaridad": "exacto",
-      "prosa": "README.md"
+      "prosa": "README.md",
+      "modo": "derivacion"
     },
     {
       "id": "cumplidos_cw",
       "afirma": "cumplidos: 6",
       "dato": "sim/solver_plasma_cw.py",
-      "ruta": "criterios[cumple=true]",
-      "deriva": "parser:tests/test_cifras_selladas.py::test_cw_veredicto_publicado",
+      "ruta": "cw.criterios[cumple=true]",
+      "deriva": "parser:tests/test_cifras_selladas.py::cifras_cw",
       "polaridad": "exacto",
-      "prosa": "README.md"
+      "prosa": "README.md",
+      "modo": "derivacion"
     },
     {
       "id": "fallados_cw",
       "afirma": "fallados: 0",
       "dato": "sim/solver_plasma_cw.py",
-      "ruta": "criterios[cumple=false]",
-      "deriva": "parser:tests/test_cifras_selladas.py::test_cw_veredicto_publicado",
+      "ruta": "cw.criterios[cumple=false]",
+      "deriva": "parser:tests/test_cifras_selladas.py::cifras_cw",
       "polaridad": "exacto",
-      "prosa": "README.md"
+      "prosa": "README.md",
+      "modo": "derivacion"
     },
     {
       "id": "sellos_pulso",
@@ -48,7 +52,9 @@
       "ruta": "sellos.filas",
       "deriva": "parser:tests/test_cifras_selladas.py::test_pulso_sellos_cierran",
       "polaridad": "exacto",
-      "prosa": "README.md"
+      "prosa": "README.md",
+      "modo": "testigo_permanente",
+      "motivo": "el README declara una TRANSICION ('Filas: 190 → 189'), no un valor vigente: 190 es la historia y 189 lo medido. Un portador que devolviese 189 cotejaria contra el 190 que la prosa afirma y firmaria README_DESALINEADO por construccion, no por deriva. Lo que si se mide, en el testigo, es que hoy son 189 y que la fila retirada esta declarada."
     },
     {
       "id": "rojas_pulso",
@@ -57,34 +63,39 @@
       "ruta": "sellos.rojas",
       "deriva": "parser:tests/test_cifras_selladas.py::test_pulso_sellos_cierran",
       "polaridad": "exacto",
-      "prosa": "README.md"
+      "prosa": "README.md",
+      "modo": "testigo_permanente",
+      "motivo": "misma transicion que sellos_pulso: '16 → 0' publica el estado ANTERIOR y el vigente en una sola linea. Recomponer el 16 exigiria el crudo del acto previo, que no vive en el repo; el 0 vigente lo mide el testigo (rojas == []) y el claim no puede derivarlo del crudo de hoy."
     },
     {
       "id": "criterios_pulso",
       "afirma": "Criterios: 9",
       "dato": "sim/solver_plasma_pulso.py",
-      "ruta": "criterios",
-      "deriva": "parser:tests/test_cifras_selladas.py::test_pulso_veredicto_publicado",
+      "ruta": "pulso.criterios",
+      "deriva": "parser:tests/test_cifras_selladas.py::cifras_pulso",
       "polaridad": "exacto",
-      "prosa": "README.md"
+      "prosa": "README.md",
+      "modo": "derivacion"
     },
     {
       "id": "cumplidos_pulso",
       "afirma": "cumplidos 6",
       "dato": "sim/solver_plasma_pulso.py",
-      "ruta": "criterios[cumple=true]",
-      "deriva": "parser:tests/test_cifras_selladas.py::test_pulso_veredicto_publicado",
+      "ruta": "pulso.criterios[cumple=true]",
+      "deriva": "parser:tests/test_cifras_selladas.py::cifras_pulso",
       "polaridad": "exacto",
-      "prosa": "README.md"
+      "prosa": "README.md",
+      "modo": "derivacion"
     },
     {
       "id": "fallados_pulso",
       "afirma": "fallados 3",
       "dato": "sim/solver_plasma_pulso.py",
-      "ruta": "criterios[cumple=false]",
-      "deriva": "parser:tests/test_cifras_selladas.py::test_pulso_veredicto_publicado",
+      "ruta": "pulso.criterios[cumple=false]",
+      "deriva": "parser:tests/test_cifras_selladas.py::cifras_pulso",
       "polaridad": "exacto",
-      "prosa": "README.md"
+      "prosa": "README.md",
+      "modo": "derivacion"
     }
   ]
 }

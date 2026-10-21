@@ -80,10 +80,28 @@ def _literal(txt):
     return t.strip("'\"")
 
 
-def resolver(obj, ruta):
-    """Resuelve 'a.b[campo=false].c'; una lista al final vale su longitud."""
+def resolver(obj, ruta, raiz=None, solvers=()):
+    """Resuelve 'a.b[campo=false].c'; una lista al final vale su longitud.
+
+    HUELLA-PLASMA-WITNESS-SELECTOR-DE-SOLVER-20261021: si la ruta EMPIEZA por el
+    nombre de un solver, ese primer segmento es el SELECTOR — asi lo lee el
+    verificador de portafolio (sim/verify_claims.py, dialecto `parser:`) — y se
+    exige que sea el solver del `dato`. Nombrar otro solver no es una tolerancia:
+    es RUTA_DE_OTRO_SOLVER, porque el valor saldria de un crudo que el claim no
+    declara.
+    """
+    segmentos = ruta.split(".")
+    if segmentos and solvers and segmentos[0] in solvers:
+        if segmentos[0] != raiz:
+            raise ValueError(
+                "RUTA_DE_OTRO_SOLVER: %r selecciona %r y el dato es %r"
+                % (ruta, segmentos[0], raiz)
+            )
+        segmentos = segmentos[1:]
+    if not segmentos:
+        raise ValueError("RUTA_INVALIDA: %r no resuelve nada bajo el selector" % ruta)
     actual = obj
-    for segmento in ruta.split("."):
+    for segmento in segmentos:
         m = SEGMENTO.match(segmento)
         if not m:
             raise ValueError("RUTA_INVALIDA: %r no es un segmento valido" % ruta)
@@ -178,7 +196,9 @@ def inconsistencias_claims(obj, mod=None):
 
         if clave is not None:
             try:
-                valor = resolver(mod.res(clave), c["ruta"])
+                valor = resolver(
+                    mod.res(clave), c["ruta"], raiz=clave, solvers=tuple(mod.SOLVERS)
+                )
             except ValueError as exc:
                 causa = str(exc)
                 codigo = causa.split(":", 1)[0]
@@ -224,6 +244,7 @@ def test_el_testigo_de_claims_sabe_fallar():
         ),
         "DERIVACION_CIEGA": mutar(0, "dato", "sim/solver_plasma_pulso.py"),
         "RUTA_AUSENTE": mutar(0, "ruta", "sellos.no_existe"),
+        "RUTA_DE_OTRO_SOLVER": mutar(0, "ruta", "pulso.sellos.filas"),
         "VALOR_NO_ES_EL_CRUDO": mutar(0, "ruta", "sellos.rojas"),
         "POLARIDAD_INVENTADA": mutar(0, "polaridad", "creciente"),
         "README_DESALINEADO": mutar(0, "afirma", "27 sellos rotos"),

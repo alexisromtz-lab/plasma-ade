@@ -73,6 +73,29 @@ def res(nombre):
     return crudo(nombre)[2]
 
 
+# -------------------------------------------- portadores que DEVUELVEN el crudo
+# HUELLA-PLASMA-PORTADOR-CIFRAS-JSON-20261021: el verificador de claims
+# (sim/verify_claims.py, dialecto `parser:`) deriva solo si la funcion DEVUELVE
+# la cifra; un `test_*` asevera y devuelve None, que se lee como testigo. Estos
+# portadores devuelven el JSON del solver ya ejecutado y el claim nombra dentro
+# de el con `ruta` (`cw.sellos.filas`): el primer segmento SELECCIONA el solver,
+# el resto es la direccion dentro de su JSON. Dos funciones y no una generica
+# porque el testigo de claims (`tests/test_claims_witness.py`) exige que la
+# funcion nombrada en `deriva` lea SU solver, y lo mide sobre el fuente: un
+# portador con parametro no puede nombrar a nadie. No sustituyen a los
+# testigos: los alimentan del mismo crudo, medido una sola vez por corrida.
+
+
+def cifras_cw():
+    """El JSON del solver de onda continua (27 sellos, 6 criterios)."""
+    return res("cw")
+
+
+def cifras_pulso():
+    """El JSON del solver de pulsos (189 sellos, 9 criterios)."""
+    return res("pulso")
+
+
 def ids_criterios(nombre):
     return [c["nombre"].split()[0] for c in res(nombre)["criterios"]]
 
