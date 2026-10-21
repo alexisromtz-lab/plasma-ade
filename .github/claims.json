@@ -1,7 +1,90 @@
 {
-  "huella": "HUELLA-CLAIMS-PLASMA-ADE-20261020",
+  "huella": "HUELLA-CLAIMS-PLASMA-ADE-MECANIZABLE-20261020",
   "repo": "plasma-ade",
-  "clase": "C",
-  "estado": "SIN_DATO_MECANIZABLE",
-  "motivo": "0 artefactos .json y 0 .txt rastreados (medido con git ls-files el 2026-10-20): el repositorio publica prosa y codigo, y ninguna cifra tiene dato del que derivarse."
+  "clase": "A",
+  "acta": "HUELLA-PLASMA-ADE-CLAIMS-MECANIZABLE-20261020",
+  "nota": "El motivo SIN_DATO_MECANIZABLE (0 artefactos .json y 0 .txt rastreados) era cierto el dia que se escribio y hoy es falso por medicion: el crudo que porta estas cifras es el JSON que los dos solvers imprimen entre JSON_BEGIN y JSON_END, y se ejecuta en cada push. deriva apunta a tests/test_cifras_selladas.py, el parser independiente que ya recomputa los veredictos, y NO al testigo tests/test_claims_witness.py: un claims.json cuyo deriva nombrase a su propio testigo se verificaria a si mismo. polaridad es exacto en todos los claims porque los dos contadores (cumplidos y fallados) se cuentan directo sobre criterios[] y ninguno es un complemento aritmetico, a diferencia de la polaridad complemento de rf.",
+  "claims": [
+    {
+      "id": "sellos_cw",
+      "afirma": "27 sellos",
+      "dato": "sim/solver_plasma_cw.py",
+      "ruta": "sellos.filas",
+      "deriva": "parser:tests/test_cifras_selladas.py::test_cw_sellos_cierran",
+      "polaridad": "exacto",
+      "prosa": "README.md"
+    },
+    {
+      "id": "rojas_cw",
+      "afirma": "0 rojas",
+      "dato": "sim/solver_plasma_cw.py",
+      "ruta": "sellos.rojas",
+      "deriva": "parser:tests/test_cifras_selladas.py::test_cw_sellos_cierran",
+      "polaridad": "exacto",
+      "prosa": "README.md"
+    },
+    {
+      "id": "cumplidos_cw",
+      "afirma": "cumplidos: 6",
+      "dato": "sim/solver_plasma_cw.py",
+      "ruta": "criterios[cumple=true]",
+      "deriva": "parser:tests/test_cifras_selladas.py::test_cw_veredicto_publicado",
+      "polaridad": "exacto",
+      "prosa": "README.md"
+    },
+    {
+      "id": "fallados_cw",
+      "afirma": "fallados: 0",
+      "dato": "sim/solver_plasma_cw.py",
+      "ruta": "criterios[cumple=false]",
+      "deriva": "parser:tests/test_cifras_selladas.py::test_cw_veredicto_publicado",
+      "polaridad": "exacto",
+      "prosa": "README.md"
+    },
+    {
+      "id": "sellos_pulso",
+      "afirma": "Filas: 190 → 189",
+      "dato": "sim/solver_plasma_pulso.py",
+      "ruta": "sellos.filas",
+      "deriva": "parser:tests/test_cifras_selladas.py::test_pulso_sellos_cierran",
+      "polaridad": "exacto",
+      "prosa": "README.md"
+    },
+    {
+      "id": "rojas_pulso",
+      "afirma": "Rojos de sello: 16 → 0",
+      "dato": "sim/solver_plasma_pulso.py",
+      "ruta": "sellos.rojas",
+      "deriva": "parser:tests/test_cifras_selladas.py::test_pulso_sellos_cierran",
+      "polaridad": "exacto",
+      "prosa": "README.md"
+    },
+    {
+      "id": "criterios_pulso",
+      "afirma": "Criterios: 9",
+      "dato": "sim/solver_plasma_pulso.py",
+      "ruta": "criterios",
+      "deriva": "parser:tests/test_cifras_selladas.py::test_pulso_veredicto_publicado",
+      "polaridad": "exacto",
+      "prosa": "README.md"
+    },
+    {
+      "id": "cumplidos_pulso",
+      "afirma": "cumplidos 6",
+      "dato": "sim/solver_plasma_pulso.py",
+      "ruta": "criterios[cumple=true]",
+      "deriva": "parser:tests/test_cifras_selladas.py::test_pulso_veredicto_publicado",
+      "polaridad": "exacto",
+      "prosa": "README.md"
+    },
+    {
+      "id": "fallados_pulso",
+      "afirma": "fallados 3",
+      "dato": "sim/solver_plasma_pulso.py",
+      "ruta": "criterios[cumple=false]",
+      "deriva": "parser:tests/test_cifras_selladas.py::test_pulso_veredicto_publicado",
+      "polaridad": "exacto",
+      "prosa": "README.md"
+    }
+  ]
 }
