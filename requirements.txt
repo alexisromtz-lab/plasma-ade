@@ -1,0 +1,6 @@
+# HUELLA-PLASMA-ADE-CIFRAS-SELLADAS-20261020
+# El CI instalaba `pytest` pelado: los dos solvers importan numpy y morian con
+# ModuleNotFoundError, asi que el instrumento no se podia ni arrancar. Los
+# solvers no usan otra cosa que numpy y math — el rango deja la deriva visible
+# (los ultimos digitos de T viajan con el BLAS; el veredicto no).
+numpy>=2.0,<3.0

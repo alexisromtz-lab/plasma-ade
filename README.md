@@ -16,7 +16,8 @@ con nombre propio y no se vuelve a tocar.
 
 ### §12 · corrida CW — `C4a` falla y se congela
 
-- Criterios sellados: **6** · cumplidos: **5** · fallados: **1** (`C4a`).
+- Criterios sellados: **6** · cumplidos: **5** · fallados: **1** (`C4a`) — **estado de la corrida
+  original**; el estado vigente se declara abajo y no reescribe este párrafo.
 - `C4a` exige `|m_med − m_exacto| / 12.3900 ≤ 0.02`. **No lo cumple.** Causa **medida, no
   conjeturada** (incluye descartar explícitamente el desfase de media celda: 2.45 % y con el signo
   contrario, que no explica el fallo).
@@ -25,6 +26,16 @@ con nombre propio y no se vuelve a tocar.
 - Crudo congelado: `solver_plasma_cw_crudo_1649.txt`, con su repetición `replay_solver_plasma_cw_1715.txt`.
 
 Acta: [`ACTA_DE_FALLO_C4A_Y_CONGELACION_DEL_CRUDO_20261012.md`](ACTA_DE_FALLO_C4A_Y_CONGELACION_DEL_CRUDO_20261012.md)
+
+<!-- HUELLA-PLASMA-ADE-CIFRAS-SELLADAS-20261020 -->
+
+**Estado vigente de §12 (recalibración declarada).** El acta de fallo de arriba **es historia y no
+se reescribe**; la recalibración posterior (`s12_informe_recalibracion.md`, blob `55ed5d85`, 478 l,
+§11 congelado sin tocar un umbral) deja los **6 criterios en verde** — `cumplidos: 6` ·
+`fallados: 0`, con `C4a` `err_rel = 0.000975 ≤ 0.02` — y **27 sellos · 0 rojas · RC 0**. El estado
+vigente no se sostiene con esta prosa: lo mide `tests/test_cifras_selladas.py`, que corre los dos
+solvers en el CI y **pinea el veredicto, no los últimos dígitos** (los dígitos viajan con el BLAS;
+el veredicto, el denominador `sellos.filas` y el `RC` no).
 
 ### §13 · pulsos de banda ancha — cierre con veredicto
 
