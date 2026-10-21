@@ -4,3 +4,7 @@
 # solvers no usan otra cosa que numpy y math — el rango deja la deriva visible
 # (los ultimos digitos de T viajan con el BLAS; el veredicto no).
 numpy>=2.0,<3.0
+# HUELLA-CENSO-PYTEST-PLANTILLA-DECLARACIONES-20261020
+# pytest es del APARATO (collector + junitxml), no del runtime: hasta hoy solo
+# vivia en el comentario de arriba y la plantilla lo instalaba a ciegas.
+pytest>=8,<10
