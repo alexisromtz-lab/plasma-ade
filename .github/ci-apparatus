@@ -1,8 +1,10 @@
-# HUELLA-CI-PY-V7-MODO-COMPUESTO-20261020
+# HUELLA-CI-APPARATUS-PLASMA-TESTS-20261022
 # HUELLA-PLASMA-ADE-CIFRAS-SELLADAS-20261020
-# Contrato v7: el aparato MIDE DOS COSAS y certifica las dos. Hasta este acto el
-# comando solo medía el manifiesto: los dos solvers (1336 l, 27 + 189 sellos, RC
-# 0/2) no los corria ningun CI — el instrumento existia y nadie lo miraba.
-comando: python .github/verify_manifest.py && python -m pytest -q tests --junitxml=/tmp/junit.xml
-mide: manifiesto+tests
-evidencia: MANIFIESTO_SANO: [0-9]+; junitxml
+# Contrato v10: el aparato mide UNA cosa. El modo compuesto ponia
+# `.github/verify_manifest.py` delante de pytest; ese manifiesto comprueba que
+# los ficheros existen, parsean y compilan, mientras que lo que importa —los dos
+# solvers (1336 l, 27 + 189 sellos, RC 0/2) y sus veredictos— lo mide el banco.
+# El manifiesto se retira: su firma no distingue un solver roto de uno sano.
+comando: python -m pytest -q tests --junitxml=/tmp/junit.xml
+mide: tests
+evidencia: junitxml
